@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau Link Fixer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #2196f3;
+        }
+        
+        .button {
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .button:hover {
+            background-color: #1976d2;
+        }
+        
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .output-section {
+            margin-top: 30px;
+        }
+        
+        .fixed-link {
+            background-color: #f1f8e9;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+            word-break: break-all;
+            margin-bottom: 15px;
+        }
+        
+        .fixed-link a {
+            color: #2e7d32;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .fixed-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #f44336;
+        }
+        
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Tableau Link Fixer</h1>
+        
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ol>
+                <li>Copy your broken Tableau bookmark link</li>
+                <li>Paste it in the textbox below</li>
+                <li>The fixed link will appear automatically</li>
+            </ol>
+        </div>
+        
+        <div class="input-section">
+            <label for="brokenLink"><strong>Paste your broken Tableau link here:</strong></label>
+            <textarea id="brokenLink" placeholder="https://us-west-2b.online.tableau.com/#/site/yoursite/views/YourDashboard/YourView/a1b2c3d4-e5f6-7890-abcd-ef1234567890/YourReport?:iid=1"></textarea>
+            <br><br>
+            <button class="button" onclick="clearAll()">Clear</button>
+        </div>
+        
+        <div id="outputSection" class="output-section hidden">
+            <h3>Fixed Link:</h3>
+            <div id="fixedLinkOutput" class="fixed-link"></div>
+        </div>
+        
+        <div id="errorOutput" class="error hidden"></div>
+    </div>
+
+    <script>
+        function fixLink() {
+            const input = document.getElementById('brokenLink').value.trim();
+            const outputSection = document.getElementById('outputSection');
+            const errorOutput = document.getElementById('errorOutput');
+            
+            // Hide previous outputs
+            outputSection.classList.add('hidden');
+            errorOutput.classList.add('hidden');
+            
+            if (!input) {
+                showError('Please paste a Tableau link in the textbox.');
+                return;
+            }
+            
+            try {
+                const fixedLink = processTableauLink(input);
+                if (fixedLink) {
+                    displayFixedLink(fixedLink);
+                } else {
+                    showError('The link doesn\'t appear to be a valid Tableau link. Please check and try again.');
+                }
+            } catch (error) {
+                showError('An error occurred while processing the link. Please check the format and try again.');
+            }
+        }
+        
+        function processTableauLink(url) {
+            // Check if it's a Tableau link
+            if (!url.includes('tableau.com') || !url.includes('/views/')) {
+                return null;
+            }
+            
+            try {
+                // Handle URLs with hash fragments properly
+                let baseUrl, hashPart;
+                
+                if (url.includes('#')) {
+                    const hashIndex = url.indexOf('#');
+                    baseUrl = url.substring(0, hashIndex);
+                    hashPart = url.substring(hashIndex);
+                } else {
+                    baseUrl = url;
+                    hashPart = '';
+                }
+                
+                const urlObj = new URL(baseUrl);
+                
+                // Parse the hash part to extract the path
+                if (hashPart.startsWith('#/site/')) {
+                    const pathParts = hashPart.split('/');
+                    const siteIndex = pathParts.indexOf('site') + 1;
+                    const viewsIndex = pathParts.indexOf('views');
+                    
+                    if (siteIndex < pathParts.length && viewsIndex !== -1 && viewsIndex + 1 < pathParts.length) {
+                        const siteName = pathParts[siteIndex];
+                        const workbookName = pathParts[viewsIndex + 1];
+                        const viewName = pathParts[viewsIndex + 2];
+                        
+                        // Reconstruct the clean URL
+                        const cleanHash = `#/site/${siteName}/views/${workbookName}/${viewName}`;
+                        const cleanUrl = `${urlObj.protocol}//${urlObj.host}${cleanHash}`;
+                        
+                        return cleanUrl;
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        function displayFixedLink(fixedLink) {
+            const outputSection = document.getElementById('outputSection');
+            const fixedLinkOutput = document.getElementById('fixedLinkOutput');
+            
+            // Ensure the displayed text has the correct format with slash before hash
+            const displayText = fixedLink.replace('#', '/#');
+            fixedLinkOutput.innerHTML = `<a href="${fixedLink}" target="_blank">${displayText}</a>`;
+            outputSection.classList.remove('hidden');
+        }
+        
+        function showError(message) {
+            const errorOutput = document.getElementById('errorOutput');
+            errorOutput.textContent = message;
+            errorOutput.classList.remove('hidden');
+        }
+        
+        function clearAll() {
+            document.getElementById('brokenLink').value = '';
+            document.getElementById('outputSection').classList.add('hidden');
+            document.getElementById('errorOutput').classList.add('hidden');
+        }
+        
+
+        
+        // Auto-detect when user pastes a link
+        document.getElementById('brokenLink').addEventListener('paste', function(e) {
+            setTimeout(() => {
+                const input = this.value.trim();
+                if (input && input.includes('tableau.com')) {
+                    fixLink();
+                }
+            }, 100);
+        });
+        
+        // Handle Enter key
+        document.getElementById('brokenLink').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                fixLink();
+            }
+        });
+    </script>
+</body>
+</html> 
